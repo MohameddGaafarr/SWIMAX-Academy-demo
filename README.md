@@ -1,6 +1,6 @@
 # SWIMAX — Swimming Academy Management System (Demo Showcase) 🏊
 
-![SWIMAX Banner](./screenshots/banner.png)
+![SWIMAX Banner](Capture.PNG)
 
 A modern full-stack swimming academy management system built as a real-world business solution, showcased here as an interactive frontend demo for portfolio purposes.
 
@@ -8,7 +8,7 @@ A modern full-stack swimming academy management system built as a real-world bus
 
 ## 🚀 Live Demo
 
-🔗 **Demo Link:** https://YOUR-DEMO-LINK.vercel.app
+🔗 **Demo Link:** ( https://swimax-academy-demo.vercel.app/ )
 
 ### Demo Login Credentials
 
@@ -42,7 +42,7 @@ Built as a real business project with polished UI/UX and responsive design.
 ## 📸 Screenshots
 
 ### Dashboard
-![Dashboard](./screenshots/dashboard.png)
+![Dashboard](screenshots/Screenshot(1102).png)
 
 ### Coaches Management
 ![Coaches](./screenshots/coaches.png)
