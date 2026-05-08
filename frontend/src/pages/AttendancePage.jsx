@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import api from "../services/api.js";
+import { useDemoData } from "../context/DemoDataContext.jsx";
 import CoachesPagination from "../components/CoachesPagination.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import { formatDuration, hoursToMinutes } from "../utils/formatDuration.js";
-
 
 function downloadCSV(filename, rows) {
   if (!Array.isArray(rows) || rows.length <= 1) {
@@ -33,8 +32,7 @@ function downloadCSV(filename, rows) {
 }
 
 function getErrorMessage(err) {
-  const msg = err?.response?.data?.message;
-  if (typeof msg === "string") return msg;
+  if (err?.message) return err.message;
   return "Something went wrong";
 }
 
@@ -75,6 +73,8 @@ function monthToDateRange(monthValue) {
 }
 
 export default function AttendancePage() {
+  const demo = useDemoData();
+
   const [records, setRecords] = useState([]);
   const [payroll, setPayroll] = useState([]);
   const [coaches, setCoaches] = useState([]);
@@ -151,20 +151,29 @@ export default function AttendancePage() {
     }
   }
 
-
-  const loadReferences = useCallback(async () => {
+  const loadReferences = useCallback(() => {
     try {
-      const [coachesRes, sessionsRes] = await Promise.all([
-        api.get("/api/coaches", { params: { page: 1, limit: 200, sortBy: "name", order: "asc" } }),
-        api.get("/api/sessions", { params: { page: 1, limit: 300, sortBy: "createdAt", order: "desc" } }),
-      ]);
+      const coachesRes = demo.listCoaches({
+        page: 1,
+        limit: 200,
+        sortBy: "name",
+        order: "asc",
+        search: undefined,
+      });
+      const sessionsRes = demo.listSessions({
+        page: 1,
+        limit: 300,
+        sortBy: "createdAt",
+        order: "desc",
+        search: undefined,
+      });
 
-      setCoaches(Array.isArray(coachesRes.data?.coaches) ? coachesRes.data.coaches : []);
-      setSessions(Array.isArray(sessionsRes.data?.sessions) ? sessionsRes.data.sessions : []);
+      setCoaches(Array.isArray(coachesRes?.coaches) ? coachesRes.coaches : []);
+      setSessions(Array.isArray(sessionsRes?.sessions) ? sessionsRes.sessions : []);
     } catch (err) {
       setError(getErrorMessage(err));
     }
-  }, []);
+  }, [demo]);
 
   const queryParams = useMemo(
     () => ({
@@ -185,16 +194,14 @@ export default function AttendancePage() {
     [payrollStartDate, payrollEndDate],
   );
 
-  const loadAttendanceHistory = useCallback(async () => {
+  const loadAttendanceHistory = useCallback(() => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.get("/api/attendance/history", {
-        params: {
-          ...queryParams,
-          page,
-          limit,
-        },
+      const data = demo.listAttendanceHistory({
+        ...queryParams,
+        page,
+        limit,
       });
 
       setRecords(Array.isArray(data?.records) ? data.records : []);
@@ -212,14 +219,12 @@ export default function AttendancePage() {
     } finally {
       setLoading(false);
     }
-  }, [queryParams, page, limit]);
+  }, [demo, queryParams, page, limit]);
 
-  const loadPayrollSummary = useCallback(async () => {
+  const loadPayrollSummary = useCallback(() => {
     setSummaryLoading(true);
     try {
-      const { data } = await api.get("/api/attendance/payroll-summary", {
-        params: payrollQueryParams,
-      });
+      const data = demo.getPayrollSummary(payrollQueryParams);
       setPayroll(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -227,7 +232,7 @@ export default function AttendancePage() {
     } finally {
       setSummaryLoading(false);
     }
-  }, [payrollQueryParams]);
+  }, [demo, payrollQueryParams]);
 
   useEffect(() => {
     loadReferences();
@@ -266,10 +271,11 @@ export default function AttendancePage() {
     setError(null);
     setSuccessMessage(null);
     try {
-      const { data } = await api.delete("/api/attendance/clear");
-      await Promise.all([loadAttendanceHistory(), loadPayrollSummary()]);
+      demo.clearAttendance();
+      loadAttendanceHistory();
+      loadPayrollSummary();
       setClearOpen(false);
-      setSuccessMessage(data?.message || "All attendance cleared");
+      setSuccessMessage("All attendance cleared");
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

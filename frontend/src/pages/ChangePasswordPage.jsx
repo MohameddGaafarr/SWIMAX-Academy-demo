@@ -1,17 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "../services/api.js";
-import { useAuth } from "../hooks/useAuth.js";
-
-function getErrorMessage(err) {
-  const msg = err?.response?.data?.message;
-  if (typeof msg === "string") return msg;
-  return "Failed to update password";
-}
 
 export default function ChangePasswordPage() {
-  const navigate = useNavigate();
-  const { logout } = useAuth();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -41,19 +30,12 @@ export default function ChangePasswordPage() {
     }
 
     setLoading(true);
-    try {
-      const { data } = await api.post("/api/auth/change-password", {
-        currentPassword,
-        newPassword,
-      });
-      setSuccess(data?.message || "Password changed successfully");
-      logout();
-      navigate("/login", { replace: true });
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
+    await new Promise((r) => setTimeout(r, 400));
+    setSuccess("Demo mode: password change is simulated only — nothing was saved.");
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setLoading(false);
   }
 
   return (

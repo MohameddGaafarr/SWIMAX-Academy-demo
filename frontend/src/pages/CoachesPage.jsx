@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import api from "../services/api.js";
+import { useDemoData } from "../context/DemoDataContext.jsx";
 import CoachTable from "../components/CoachTable.jsx";
 import CoachForm from "../components/CoachForm.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
@@ -9,12 +9,13 @@ import FullscreenModal from "../components/FullscreenModal.jsx";
 import { useDebouncedValue } from "../hooks/useDebouncedValue.js";
 
 function getErrorMessage(err) {
-  const msg = err?.response?.data?.message;
-  if (typeof msg === "string") return msg;
+  if (err?.message) return err.message;
   return "Something went wrong";
 }
 
 export default function CoachesPage() {
+  const demo = useDemoData();
+
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 400);
 
@@ -46,7 +47,7 @@ export default function CoachesPage() {
   const [deletingCoach, setDeletingCoach] = useState(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
-  const loadCoaches = useCallback(async () => {
+  const loadCoaches = useCallback(() => {
     const prev = filtersRef.current;
     const filtersKey = `${debouncedSearch}|${sortBy}|${order}|${limit}`;
     const prevKey = `${prev.search}|${prev.sortBy}|${prev.order}|${prev.limit}`;
@@ -63,14 +64,12 @@ export default function CoachesPage() {
     setLoading(true);
 
     try {
-      const { data } = await api.get("/api/coaches", {
-        params: {
-          search: debouncedSearch.trim() || undefined,
-          page: pageParam,
-          limit,
-          sortBy,
-          order,
-        },
+      const data = demo.listCoaches({
+        search: debouncedSearch.trim() || undefined,
+        page: pageParam,
+        limit,
+        sortBy,
+        order,
       });
 
       setCoaches(Array.isArray(data?.coaches) ? data.coaches : []);
@@ -84,7 +83,7 @@ export default function CoachesPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, limit, sortBy, order]);
+  }, [debouncedSearch, page, limit, sortBy, order, demo]);
 
   useEffect(() => {
     loadCoaches();
@@ -140,12 +139,12 @@ export default function CoachesPage() {
 
     try {
       if (formMode === "create") {
-        await api.post("/api/coaches", payload);
+        await demo.createCoach(payload);
       } else if (editingCoach?._id) {
-        await api.put(`/api/coaches/${editingCoach._id}`, payload);
+        await demo.updateCoach(editingCoach._id, payload);
       }
 
-      await loadCoaches();
+      loadCoaches();
       setFormOpen(false);
       setEditingCoach(null);
     } catch (err) {
@@ -173,8 +172,8 @@ export default function CoachesPage() {
     setError(null);
 
     try {
-      await api.delete(`/api/coaches/${deletingCoach._id}`);
-      await loadCoaches();
+      demo.deleteCoach(deletingCoach._id);
+      loadCoaches();
       setDeleteOpen(false);
       setDeletingCoach(null);
     } catch (err) {

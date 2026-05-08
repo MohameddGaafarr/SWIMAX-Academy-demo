@@ -3,13 +3,6 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.js";
 import UnderwaterBackground from "../components/UnderwaterBackground.jsx";
 
-function getErrorMessage(err) {
-  const msg = err?.response?.data?.message;
-  if (typeof msg === "string") return msg;
-  if (err?.message) return err.message;
-  return "Login failed";
-}
-
 export default function LoginPage() {
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
@@ -32,13 +25,7 @@ export default function LoginPage() {
       await login(username, password);
       navigate("/", { replace: true });
     } catch (err) {
-      if (err?.response?.status === 401 || err?.response?.status === 400) {
-        setError(getErrorMessage(err));
-      } else if (err?.code === "ERR_NETWORK") {
-        setError("Cannot reach server. Is the API running?");
-      } else {
-        setError(getErrorMessage(err));
-      }
+      setError(err?.message || "Login failed");
     } finally {
       setSubmitting(false);
     }

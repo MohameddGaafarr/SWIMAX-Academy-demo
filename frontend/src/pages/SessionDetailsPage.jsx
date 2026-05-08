@@ -1,13 +1,6 @@
-import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import api from "../services/api.js";
+import { useDemoData } from "../context/DemoDataContext.jsx";
 import { formatDuration } from "../utils/formatDuration.js";
-
-function getErrorMessage(err) {
-  const msg = err?.response?.data?.message;
-  if (typeof msg === "string") return msg;
-  return "Something went wrong";
-}
 
 function coachName(session) {
   const coach = session?.coachId;
@@ -26,48 +19,16 @@ function durationFromTimeRange(startTime, endTime) {
 
 export default function SessionDetailsPage() {
   const { id } = useParams();
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const demo = useDemoData();
+  const session = id ? demo.getSessionById(id) : null;
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data } = await api.get(`/api/sessions/${id}`);
-        if (!cancelled) setSession(data);
-      } catch (err) {
-        if (!cancelled) setError(getErrorMessage(err));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    if (id) load();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-4 w-40 rounded bg-slate-800" />
-        <div className="h-48 rounded-2xl bg-slate-800/80" />
-      </div>
-    );
-  }
-
-  if (error || !session) {
+  if (!session) {
     return (
       <div className="space-y-6">
         <Link to="/sessions" className="link-back">
           ← Back to sessions
         </Link>
-        <div className="error-box">{error || "Session not found."}</div>
+        <div className="error-box">Session not found.</div>
       </div>
     );
   }

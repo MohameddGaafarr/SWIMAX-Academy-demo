@@ -1,15 +1,7 @@
-import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import api from "../services/api.js";
+import { useDemoData } from "../context/DemoDataContext.jsx";
 import { formatDuration, hoursToMinutes } from "../utils/formatDuration.js";
 
-function getErrorMessage(err) {
-  const msg = err?.response?.data?.message;
-  if (typeof msg === "string") return msg;
-  return "Something went wrong";
-}
-
-// 🔥 Smart text component (auto RTL / LTR)
 function SmartText({ text, className = "" }) {
   const isArabic = /[\u0600-\u06FF]/.test(text || "");
   return (
@@ -24,61 +16,29 @@ function SmartText({ text, className = "" }) {
 
 export default function CoachProfilePage() {
   const { id } = useParams();
+  const demo = useDemoData();
+  const coach = id ? demo.getCoachById(id) : null;
 
-  const [coach, setCoach] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const { data } = await api.get(`/api/coaches/${id}`);
-        if (!cancelled) setCoach(data);
-      } catch (err) {
-        if (!cancelled) setError(getErrorMessage(err));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    if (id) load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-4 w-32 rounded bg-slate-800" />
-        <div className="h-64 rounded-2xl bg-slate-800/80" />
-      </div>
-    );
-  }
-
-  if (error || !coach) {
+  if (!coach) {
     return (
       <div className="space-y-6">
         <Link to="/coaches" className="link-back">
           ← Back to coaches
         </Link>
 
-        <div className="error-box">{error || "Coach not found."}</div>
+        <div className="error-box">Coach not found.</div>
       </div>
     );
   }
 
-  const imageUrl = coach.image?.startsWith("http")
-    ? coach.image
-    : coach.image
-    ? `${import.meta.env.VITE_API_URL}/${coach.image}`
-    : null;
+  const raw = coach.image ? String(coach.image) : "";
+  const imageUrl =
+    raw &&
+    (raw.startsWith("http") || raw.startsWith("data:") || raw.startsWith("blob:"))
+      ? raw
+      : import.meta.env.VITE_API_URL
+        ? `${import.meta.env.VITE_API_URL}/${raw}`
+        : null;
 
   const firstLetter = coach.name?.charAt(0)?.toUpperCase() || "?";
 

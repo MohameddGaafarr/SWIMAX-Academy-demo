@@ -1,14 +1,6 @@
-import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import api from "../services/api.js";
+import { useDemoData } from "../context/DemoDataContext.jsx";
 
-function getErrorMessage(err) {
-  const msg = err?.response?.data?.message;
-  if (typeof msg === "string") return msg;
-  return "Something went wrong";
-}
-
-// 🔥 Smart RTL / LTR Component
 function SmartText({ text, className = "" }) {
   const isArabic = /[\u0600-\u06FF]/.test(text || "");
   return (
@@ -41,52 +33,17 @@ function sessionSummary(trainee) {
 
 export default function TraineeProfilePage() {
   const { id } = useParams();
+  const demo = useDemoData();
+  const trainee = id ? demo.getTraineeById(id) : null;
 
-  const [trainee, setTrainee] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const { data } = await api.get(`/api/trainees/${id}`);
-        if (!cancelled) setTrainee(data);
-      } catch (err) {
-        if (!cancelled) setError(getErrorMessage(err));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    if (id) load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-4 w-36 rounded bg-slate-800" />
-        <div className="h-56 rounded-2xl bg-slate-800/80" />
-      </div>
-    );
-  }
-
-  if (error || !trainee) {
+  if (!trainee) {
     return (
       <div className="space-y-6">
         <Link to="/trainees" className="link-back">
           ← Back to trainees
         </Link>
 
-        <div className="error-box">{error || "Trainee not found."}</div>
+        <div className="error-box">Trainee not found.</div>
       </div>
     );
   }

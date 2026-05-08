@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import api from "../services/api.js";
+import { useDemoData } from "../context/DemoDataContext.jsx";
 import TraineeTable from "../components/TraineeTable.jsx";
 import TraineeForm from "../components/TraineeForm.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
@@ -9,12 +9,13 @@ import FullscreenModal from "../components/FullscreenModal.jsx";
 import { useDebouncedValue } from "../hooks/useDebouncedValue.js";
 
 function getErrorMessage(err) {
-  const msg = err?.response?.data?.message;
-  if (typeof msg === "string") return msg;
+  if (err?.message) return err.message;
   return "Something went wrong";
 }
 
 export default function TraineesPage() {
+  const demo = useDemoData();
+
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 400);
 
@@ -49,7 +50,7 @@ export default function TraineesPage() {
   const [deletingTrainee, setDeletingTrainee] = useState(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
-  const loadTrainees = useCallback(async () => {
+  const loadTrainees = useCallback(() => {
     const prev = filtersRef.current;
     const filtersKey = `${debouncedSearch}|${sortBy}|${order}|${limit}|${level}`;
     const prevKey = `${prev.search}|${prev.sortBy}|${prev.order}|${prev.limit}|${prev.level}`;
@@ -73,15 +74,13 @@ export default function TraineesPage() {
     setLoading(true);
 
     try {
-      const { data } = await api.get("/api/trainees", {
-        params: {
-          search: debouncedSearch.trim() || undefined,
-          page: pageParam,
-          limit,
-          sortBy,
-          order,
-          level: level || undefined,
-        },
+      const data = demo.listTrainees({
+        search: debouncedSearch.trim() || undefined,
+        page: pageParam,
+        limit,
+        sortBy,
+        order,
+        level: level || undefined,
       });
 
       setTrainees(Array.isArray(data?.trainees) ? data.trainees : []);
@@ -95,7 +94,7 @@ export default function TraineesPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, limit, sortBy, order, level]);
+  }, [debouncedSearch, page, limit, sortBy, order, level, demo]);
 
   useEffect(() => {
     loadTrainees();
@@ -145,19 +144,18 @@ export default function TraineesPage() {
     setEditingTrainee(null);
   }
 
-  /* 🔥🔥🔥 أهم تعديل هنا */
   async function handleFormSubmit(payload) {
     setFormSubmitting(true);
     setError(null);
 
     try {
       if (formMode === "create") {
-        await api.post("/api/trainees", payload);
+        await demo.createTrainee(payload);
       } else if (editingTrainee?._id) {
-        await api.put(`/api/trainees/${editingTrainee._id}`, payload);
+        await demo.updateTrainee(editingTrainee._id, payload);
       }
 
-      await loadTrainees();
+      loadTrainees();
       setFormOpen(false);
       setEditingTrainee(null);
     } catch (err) {
@@ -185,8 +183,8 @@ export default function TraineesPage() {
     setError(null);
 
     try {
-      await api.delete(`/api/trainees/${deletingTrainee._id}`);
-      await loadTrainees();
+      demo.deleteTrainee(deletingTrainee._id);
+      loadTrainees();
       setDeleteOpen(false);
       setDeletingTrainee(null);
     } catch (err) {

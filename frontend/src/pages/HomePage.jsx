@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import api from "../services/api.js";
+import { useDemoData } from "../context/DemoDataContext.jsx";
 import { getSessionLiveBadgeFromContext } from "../utils/sessionActivity.js";
 
 function coachName(session) {
@@ -27,6 +27,8 @@ function traineeCountLabel(session) {
 }
 
 export default function HomePage() {
+  const demo = useDemoData();
+
   const [currentSessions, setCurrentSessions] = useState([]);
   const [currentNowContext, setCurrentNowContext] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -41,49 +43,35 @@ export default function HomePage() {
   const [sessionsError, setSessionsError] = useState(null);
 
   useEffect(() => {
-    async function loadStats() {
-      try {
-        const [coachesRes, traineesRes, sessionsRes] = await Promise.all([
-          api.get("/api/coaches", { params: { page: 1, limit: 1 } }),
-          api.get("/api/trainees", { params: { page: 1, limit: 1 } }),
-          api.get("/api/sessions", { params: { page: 1, limit: 1 } }),
-        ]);
-
-        setStats({
-          coaches: coachesRes.data?.totalItems || 0,
-          trainees: traineesRes.data?.totalItems || 0,
-          sessions: sessionsRes.data?.totalItems || 0,
-        });
-      } catch {}
-    }
-
-    loadStats();
-  }, []);
+    setStats({
+      coaches: demo.store.coaches.length,
+      trainees: demo.store.trainees.length,
+      sessions: demo.store.sessions.length,
+    });
+  }, [demo.store.coaches.length, demo.store.trainees.length, demo.store.sessions.length]);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadSessionCards() {
+    function loadSessionCards() {
       try {
-        const [currentRes, upcomingRes] = await Promise.all([
-          api.get("/api/sessions/current"),
-          api.get("/api/sessions/upcoming"),
-        ]);
+        const currentRes = demo.getSessionsCurrent();
+        const upcomingRes = demo.getSessionsUpcoming();
 
         if (cancelled) return;
 
-        setCurrentSessions(Array.isArray(currentRes.data?.current) ? currentRes.data.current : []);
+        setCurrentSessions(Array.isArray(currentRes?.current) ? currentRes.current : []);
         setCurrentNowContext(
-          currentRes.data?.now
+          currentRes?.now
             ? {
-                day: currentRes.data.now.weekday,
-                minutesOfDay: currentRes.data.now.minutesOfDay,
-                dateOnly: currentRes.data.now.dateOnly,
-                timestampMs: currentRes.data.now.timestampMs,
+                day: currentRes.now.weekday,
+                minutesOfDay: currentRes.now.minutesOfDay,
+                dateOnly: currentRes.now.dateOnly,
+                timestampMs: currentRes.now.timestampMs,
               }
             : null,
         );
-        setUpcomingSession(upcomingRes.data?.upcoming ?? null);
+        setUpcomingSession(upcomingRes?.upcoming ?? null);
         setSessionsError(null);
       } catch {
         if (!cancelled) {
@@ -108,7 +96,8 @@ export default function HomePage() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, []);
+  }, [demo]);
+
   const effectiveCurrentSessions = useMemo(() => currentSessions, [currentSessions]);
   function nextSession() {
     setCurrentIndex((prev) =>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import api from "../services/api.js";
+import { useDemoData } from "../context/DemoDataContext.jsx";
 import SessionTable from "../components/SessionTable.jsx";
 import SessionForm from "../components/SessionForm.jsx";
 import ConfirmModal from "../components/ConfirmModal.jsx";
@@ -12,8 +12,7 @@ import { buildOccurrenceKey } from "../utils/occurrenceKey.js";
 import { parseTimeToMinutes } from "../utils/localDateTime.js";
 
 function getErrorMessage(err) {
-  const msg = err?.response?.data?.message;
-  if (typeof msg === "string") return msg;
+  if (err?.message) return err.message;
   return "Something went wrong";
 }
 
@@ -27,6 +26,8 @@ function formatSessionLabel(sessionId) {
 }
 
 export default function SessionsPage() {
+  const demo = useDemoData();
+
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 400);
 
@@ -49,7 +50,6 @@ export default function SessionsPage() {
 
   const [coaches, setCoaches] = useState([]);
   const [trainees, setTrainees] = useState([]);
-  const [referenceLoading, setReferenceLoading] = useState(false);
 
   const [clearOpen, setClearOpen] = useState(false);
   const [clearSubmitting, setClearSubmitting] = useState(false);
@@ -67,32 +67,30 @@ export default function SessionsPage() {
 
   const currentSessionId = editingSession?._id ?? null;
 
-  // ================= LOAD =================
-  const loadReferenceData = useCallback(async () => {
-    setReferenceLoading(true);
+  const loadReferenceData = useCallback(() => {
     try {
-      const [coachesRes, traineesRes] = await Promise.all([
-        api.get("/api/coaches"),
-        api.get("/api/trainees"),
-      ]);
-      setCoaches(coachesRes.data?.coaches || []);
-      setTrainees(traineesRes.data?.trainees || []);
+      const coachesRes = demo.listCoachesForReference();
+      const traineesRes = demo.listTraineesForReference();
+      setCoaches(coachesRes.coaches || []);
+      setTrainees(traineesRes.trainees || []);
     } catch (err) {
       setError(getErrorMessage(err));
-    } finally {
-      setReferenceLoading(false);
     }
-  }, []);
+  }, [demo]);
 
   useEffect(() => {
     if (formOpen) loadReferenceData();
   }, [formOpen, loadReferenceData]);
 
-  const loadSessions = useCallback(async () => {
+  const loadSessions = useCallback(() => {
     setLoading(true);
     try {
-      const { data } = await api.get("/api/sessions", {
-        params: { search: debouncedSearch, page, limit, sortBy, order },
+      const data = demo.listSessions({
+        search: debouncedSearch,
+        page,
+        limit,
+        sortBy,
+        order,
       });
 
       setSessions(data.sessions || []);
@@ -103,15 +101,15 @@ export default function SessionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, limit, sortBy, order]);
+  }, [debouncedSearch, page, limit, sortBy, order, demo]);
 
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
 
-  const loadCurrentSessions = useCallback(async () => {
+  const loadCurrentSessions = useCallback(() => {
     try {
-      const { data } = await api.get("/api/sessions/current");
+      const data = demo.getSessionsCurrent();
       setActiveSessions(Array.isArray(data?.current) ? data.current : []);
       setActiveNowContext(
         data?.now
@@ -127,29 +125,26 @@ export default function SessionsPage() {
       setActiveSessions([]);
       setActiveNowContext(null);
     }
-  }, []);
+  }, [demo]);
 
-  const loadActivityPoolSessions = useCallback(async () => {
+  const loadActivityPoolSessions = useCallback(() => {
     try {
-      const { data } = await api.get("/api/sessions", {
-        params: { page: 1, limit: 500, sortBy: "createdAt", order: "desc" },
-      });
-      setActivityPoolSessions(Array.isArray(data?.sessions) ? data.sessions : []);
+      const rows = demo.listSessionsLarge();
+      setActivityPoolSessions(Array.isArray(rows) ? rows : []);
     } catch {
       setActivityPoolSessions([]);
     }
-  }, []);
+  }, [demo]);
 
-  const loadTodayAttendanceState = useCallback(async () => {
+  const loadTodayAttendanceState = useCallback(() => {
     try {
       const today = getCairoDateOnly();
-      const { data } = await api.get("/api/attendance", { params: { date: today } });
-      const statusByKey = data?.statusByKey && typeof data.statusByKey === "object" ? data.statusByKey : {};
-      setAttendanceStatusByKey(statusByKey);
+      const { statusByKey } = demo.getAttendanceStatusForDate(today);
+      setAttendanceStatusByKey(statusByKey && typeof statusByKey === "object" ? statusByKey : {});
     } catch {
       setAttendanceStatusByKey({});
     }
-  }, []);
+  }, [demo]);
 
   useEffect(() => {
     loadCurrentSessions();
@@ -175,7 +170,6 @@ export default function SessionsPage() {
     };
   }, [loadCurrentSessions, loadTodayAttendanceState]);
 
-  // ================= ACTIONS =================
   function openCreate() {
     setFormMode("create");
     setEditingSession(null);
@@ -198,15 +192,13 @@ export default function SessionsPage() {
     setFormSubmitting(true);
     try {
       if (formMode === "create") {
-        const { data } = await api.post("/api/sessions", payload);
-        setSessions((prev) => [data, ...prev].slice(0, limit));
-        setTotalItems((prev) => prev + 1);
+        demo.createSession(payload);
       } else {
-        const { data } = await api.put(`/api/sessions/${editingSession._id}`, payload);
-        setSessions((prev) => prev.map((item) => (item._id === data._id ? data : item)));
+        demo.updateSession(editingSession._id, payload);
       }
-      await loadCurrentSessions();
-      await loadActivityPoolSessions();
+      loadSessions();
+      loadCurrentSessions();
+      loadActivityPoolSessions();
       closeForm();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -229,11 +221,10 @@ export default function SessionsPage() {
   async function confirmDelete() {
     setDeleteSubmitting(true);
     try {
-      await api.delete(`/api/sessions/${deletingSession._id}`);
-      setSessions((prev) => prev.filter((item) => item._id !== deletingSession._id));
-      setActivityPoolSessions((prev) => prev.filter((item) => item._id !== deletingSession._id));
-      setTotalItems((prev) => Math.max(0, prev - 1));
-      await loadCurrentSessions();
+      demo.deleteSession(deletingSession._id);
+      loadSessions();
+      loadActivityPoolSessions();
+      loadCurrentSessions();
       closeDelete();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -245,7 +236,7 @@ export default function SessionsPage() {
   async function confirmClearAllSessions() {
     setClearSubmitting(true);
     try {
-      await api.delete("/api/sessions/clear");
+      demo.clearAllSessions();
       setSessions([]);
       setActiveSessions([]);
       setActivityPoolSessions([]);
@@ -266,7 +257,7 @@ export default function SessionsPage() {
     setError(null);
     try {
       const reasonValue = String(reasonDraftByKey[occurrenceKey] ?? "").trim();
-      await api.post("/api/attendance", {
+      demo.markAttendance({
         sessionId: sessionLike._id,
         date: getCairoDateOnly(),
         startTime: sessionLike.currentSlot.startTime,
@@ -280,6 +271,7 @@ export default function SessionsPage() {
       }));
       setReasonOpenByKey((prev) => ({ ...prev, [occurrenceKey]: false }));
       setReasonDraftByKey((prev) => ({ ...prev, [occurrenceKey]: "" }));
+      loadTodayAttendanceState();
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -355,7 +347,6 @@ export default function SessionsPage() {
     return [...Array.from(currentByKey.values()), ...pending];
   }, [activeSessions, activityPoolSessions, activeNowContext, attendanceStatusByKey]);
 
-  // ================= UI =================
   return (
     <div className="animate-fade-in space-y-4 md:space-y-5">
 
