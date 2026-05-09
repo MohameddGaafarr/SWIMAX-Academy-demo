@@ -45,19 +45,19 @@ Built as a real business project with polished UI/UX and responsive design.
 ![Dashboard](screenshots/Screenshot(1102).png)
 
 ### Coaches Management
-![Coaches](./screenshots/coaches.png)
+![Coaches](screenshots/Screenshot(1103).png)
 
 ### Trainees Management
-![Trainees](./screenshots/trainees.png)
+![Trainees](screenshots/Screenshot(1104).png)
 
 ### Sessions Management
-![Sessions](./screenshots/sessions.png)
+![Sessions](screenshots/Screenshot(1105).png)
 
 ### Attendance Tracking
-![Attendance](./screenshots/attendance.png)
+![Attendance](screenshots/Screenshot(1106).png)
 
 ### Mobile Responsive View
-![Mobile](./screenshots/mobile.png)
+![Mobile](screenshots/mobile.jpg)
 
 ---
 
@@ -234,7 +234,7 @@ Source code for the production version is private.
 Clone repository:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/SWIMAX-Academy-demo.git
+git clone https://github.com/MohameddGaafarr/SWIMAX-Academy-demo.git
 ```
 
 Go into frontend:
@@ -261,11 +261,10 @@ npm run dev
 
 **Mohamed Gaafar**
 
-GitHub: https://github.com/YOUR_USERNAME
+GitHub: https://github.com/MohameddGaafarr
 
-LinkedIn: https://linkedin.com/in/YOUR_PROFILE
+LinkedIn: www.linkedin.com/in/mohamed-gaafar-4667a535a
 
-Portfolio: https://YOUR-PORTFOLIO.com
 
 ---
 
